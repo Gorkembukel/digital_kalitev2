@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:hive/hive.dart';
 import '../models/email_config.dart';
+import '../models/file_config.dart';
 import '../models/server_config.dart';
 
 /// Hive tabanlı yapılandırma veritabanı.
@@ -9,6 +10,7 @@ abstract final class ConfigDatabase {
   static const _configBox = 'vitra_spc_config';
   static const _emailKey = 'email_config';
   static const _serverKey = 'server_config';
+  static const _fileKey = 'file_config';
 
   static bool _initialized = false;
 
@@ -34,6 +36,22 @@ abstract final class ConfigDatabase {
   static Future<void> saveEmailConfig(EmailConfig config) async {
     final box = await Hive.openBox<Map>(_configBox);
     await box.put(_emailKey, config.toMap());
+    await box.close();
+  }
+
+  // ─── File Config ───────────────────────────────────────────────────────────
+
+  static Future<FileConfig> loadFileConfig() async {
+    final box = await Hive.openBox<Map>(_configBox);
+    final raw = box.get(_fileKey);
+    await box.close();
+    if (raw == null) return FileConfig.empty;
+    return FileConfig.fromMap(raw);
+  }
+
+  static Future<void> saveFileConfig(FileConfig config) async {
+    final box = await Hive.openBox<Map>(_configBox);
+    await box.put(_fileKey, config.toMap());
     await box.close();
   }
 

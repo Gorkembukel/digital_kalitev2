@@ -6,6 +6,7 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/models/alarm_level.dart';
 import '../../server/server_app.dart';
 import '../../server/models/email_config.dart';
+import '../../server/models/file_config.dart';
 import '../../widgets/section_header.dart';
 
 class ServerModeScreen extends StatelessWidget {
@@ -79,6 +80,8 @@ class _DesktopLayout extends StatelessWidget {
               children: [
                 _ServerControlCard(server: server),
                 const SizedBox(height: 20),
+                _DataSourceCard(server: server),
+                const SizedBox(height: 20),
                 _EmailConfigCard(server: server),
               ],
             ),
@@ -118,6 +121,8 @@ class _MobileLayout extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _ServerControlCard(server: server),
+          const SizedBox(height: 16),
+          _DataSourceCard(server: server),
           const SizedBox(height: 16),
           _StatsCard(server: server),
           const SizedBox(height: 16),
@@ -323,12 +328,9 @@ class _StatsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final uptime = server.isRunning
-        ? _formatUptime(server.humidityData.isNotEmpty
-            ? DateTime.now()
-                .difference(server.humidityData.first.timestamp)
-                .inSeconds
-            : 0)
+    final uptime = server.isRunning && server.serverStartTime != null
+        ? _formatUptime(
+            DateTime.now().difference(server.serverStartTime!).inSeconds)
         : '-';
 
     return _Card(
@@ -928,6 +930,175 @@ class _PasswordField extends StatelessWidget {
           icon: Icon(obscure ? Icons.visibility_rounded : Icons.visibility_off_rounded),
         ),
       ),
+    );
+  }
+}
+
+// ─── Veri Kaynağı Kartı ───────────────────────────────────────────────────────
+
+class _DataSourceCard extends StatefulWidget {
+  const _DataSourceCard({required this.server});
+  final SpcServerApp server;
+
+  @override
+  State<_DataSourceCard> createState() => _DataSourceCardState();
+}
+
+class _DataSourceCardState extends State<_DataSourceCard> {
+  late final TextEditingController _csvCtrl;
+  late final TextEditingController _xlsxCtrl;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final cfg = widget.server.fileConfig;
+    _csvCtrl = TextEditingController(text: cfg.csvPath);
+    _xlsxCtrl = TextEditingController(text: cfg.xlsxPath);
+  }
+
+  @override
+  void dispose() {
+    _csvCtrl.dispose();
+    _xlsxCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    await widget.server.updateFileConfig(FileConfig(
+      csvPath: _csvCtrl.text.trim(),
+      xlsxPath: _xlsxCtrl.text.trim(),
+    ));
+    setState(() => _saving = false);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Dosya yolları kaydedildi ve veri yeniden yüklendi.')),
+      );
+    }
+  }
+
+  Future<void> _paste(TextEditingController ctrl) async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    if (data?.text != null) {
+      ctrl.text = data!.text!.trim();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SectionHeader(title: 'Veri Kaynakları', showDivider: true),
+          Text(
+            'Sharepoint / OneDrive ile senkronize dosya yollarını girin. '
+            'Sunucu her yayın döngüsünde yeni satırları otomatik okur.',
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+          ),
+          const SizedBox(height: 16),
+
+          // CSV — Nem
+          _FilePathField(
+            ctrl: _csvCtrl,
+            label: 'Nem Verisi (.csv)',
+            hint: r'C:\SharePoint\nem_verisi.csv',
+            icon: Icons.water_drop_outlined,
+            onPaste: () => _paste(_csvCtrl),
+          ),
+          const SizedBox(height: 12),
+
+          // XLSX — Deformasyon
+          _FilePathField(
+            ctrl: _xlsxCtrl,
+            label: 'Deformasyon Verisi (.xlsx)',
+            hint: r'C:\SharePoint\deformasyon.xlsx',
+            icon: Icons.straighten_rounded,
+            onPaste: () => _paste(_xlsxCtrl),
+          ),
+          const SizedBox(height: 16),
+
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _saving ? null : _save,
+              icon: _saving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.save_rounded, size: 18),
+              label: const Text('Kaydet ve Yenile'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilePathField extends StatelessWidget {
+  const _FilePathField({
+    required this.ctrl,
+    required this.label,
+    required this.hint,
+    required this.icon,
+    required this.onPaste,
+  });
+  final TextEditingController ctrl;
+  final String label;
+  final String hint;
+  final IconData icon;
+  final VoidCallback onPaste;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: AppTextStyles.label),
+        const SizedBox(height: 6),
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColors.border),
+            borderRadius: BorderRadius.circular(8),
+            color: AppColors.background,
+          ),
+          child: Row(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Icon(icon, size: 16, color: AppColors.textMuted),
+              ),
+              Expanded(
+                child: TextField(
+                  controller: ctrl,
+                  style: AppTextStyles.mono.copyWith(fontSize: 12),
+                  decoration: InputDecoration(
+                    hintText: hint,
+                    hintStyle: AppTextStyles.mono.copyWith(
+                      fontSize: 12,
+                      color: AppColors.textMuted,
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: onPaste,
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  foregroundColor: AppColors.primary,
+                ),
+                child: const Text('Yapıştır', style: TextStyle(fontSize: 12)),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

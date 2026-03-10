@@ -6,12 +6,11 @@ import '../../client/providers/connection_provider.dart';
 import '../../core/constants/spec_limits.dart';
 import '../../core/models/alarm_level.dart';
 import '../../core/models/measurement.dart';
-import '../../core/spc/imr_calculator.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../widgets/alarm_badge.dart';
 import '../../widgets/section_header.dart';
-import '../../widgets/charts/imr_chart.dart';
+import '../../widgets/charts/windowed_imr_chart.dart';
 
 class DeformationSpcScreen extends StatefulWidget {
   const DeformationSpcScreen({super.key});
@@ -55,25 +54,9 @@ class _Body extends StatelessWidget {
   final List<String> pointLabels;
   final ValueChanged<int> onPointChanged;
 
-  List<double> _vals(List<DeformationMeasurement> data) => data.map((m) {
-        switch (selectedPoint) {
-          case 1: return m.point1;
-          case 2: return m.point2;
-          case 3: return m.point3;
-          case 4: return m.point4;
-          default: return m.average;
-        }
-      }).toList();
-
   @override
   Widget build(BuildContext context) {
     final data = conn.deformationData;
-    final values = _vals(data);
-
-    ImrResult? imr;
-    if (values.length >= 2) {
-      imr = ImrCalculator.calculate(values);
-    }
 
     final oobVitra = data.where((m) => !SpecLimits.isDeformVitraInSpec(m.average)).length;
     final oobEN = data.where((m) => !SpecLimits.isDeformEN14411InSpec(m.average)).length;
@@ -133,13 +116,24 @@ class _Body extends StatelessWidget {
               selected: selectedPoint, labels: pointLabels, onChanged: onPointChanged),
           const SizedBox(height: 12),
 
-          imr != null
+          conn.totalDeformCount >= 2
               ? _Card(
-                  child: ImrChart(
-                    result: imr,
+                  child: WindowedImrChart(
+                    key: ValueKey(selectedPoint),
+                    totalCount: conn.totalDeformCount,
+                    windowSize: 80,
+                    fetcher: (offset, limit) async {
+                      final rows = await conn.fetchDeformWindow(offset, limit);
+                      return rows.map((m) => switch (selectedPoint) {
+                            1 => m.point1,
+                            2 => m.point2,
+                            3 => m.point3,
+                            4 => m.point4,
+                            _ => m.average,
+                          }).toList();
+                    },
                     title: 'Deformasyon I-MR — ${pointLabels[selectedPoint]}',
                     yAxisLabel: 'mm',
-                    maxPoints: 80,
                     height: 440,
                   ),
                 )

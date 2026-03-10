@@ -11,8 +11,8 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../widgets/alarm_badge.dart';
 import '../../widgets/section_header.dart';
-import '../../widgets/charts/imr_chart.dart';
 import '../../widgets/charts/histogram_chart.dart';
+import '../../widgets/charts/windowed_imr_chart.dart';
 
 class HumiditySpcScreen extends StatefulWidget {
   const HumiditySpcScreen({super.key});
@@ -114,18 +114,21 @@ class _HumidityBody extends StatelessWidget {
           ),
           const SizedBox(height: 10),
 
-          if (imr != null)
-            _Card(
-              child: ImrChart(
-                result: imr,
-                title: 'Nem I-MR Kontrol Diyagramı',
-                yAxisLabel: '%rH',
-                maxPoints: maxPoints,
-                height: 460,
-              ),
-            )
-          else
-            const _EmptyCard('I-MR grafiği için yeterli veri yok.'),
+          conn.totalHumidityCount >= 2
+              ? _Card(
+                  child: WindowedImrChart(
+                    totalCount: conn.totalHumidityCount,
+                    windowSize: maxPoints,
+                    fetcher: (offset, limit) async {
+                      final rows = await conn.fetchHumidityWindow(offset, limit);
+                      return rows.map((m) => m.value).toList();
+                    },
+                    title: 'Nem I-MR Kontrol Diyagramı',
+                    yAxisLabel: '%rH',
+                    height: 460,
+                  ),
+                )
+              : const _EmptyCard('I-MR grafiği için yeterli veri yok.'),
           const SizedBox(height: 24),
 
           // Spesifikasyon bilgisi

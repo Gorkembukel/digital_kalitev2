@@ -35,6 +35,11 @@ class ConnectionProvider extends ChangeNotifier {
   List<HumidityMeasurement> get humidityData => List.unmodifiable(_humidity);
   List<DeformationMeasurement> get deformationData => List.unmodifiable(_deformation);
 
+  int _totalHumidityCount = 0;
+  int _totalDeformCount = 0;
+  int get totalHumidityCount => _totalHumidityCount;
+  int get totalDeformCount => _totalDeformCount;
+
   // ─── Computed SPC ─────────────────────────────────────────────────────────
   ImrResult? _humidityImr;
   RiskResult? _humidityRisk;
@@ -67,7 +72,7 @@ class ConnectionProvider extends ChangeNotifier {
         throw Exception('Sunucuya ulaşılamıyor: $_serverUrl');
       }
 
-      // 2. HTTP ile geçmiş veriyi yükle
+      // 2. HTTP ile geçmiş veriyi yükle + toplam sayı
       final hum = await _http.fetchHumidity(limit: 300);
       final def = await _http.fetchDeformation(limit: 100);
 
@@ -77,6 +82,11 @@ class ConnectionProvider extends ChangeNotifier {
       _deformation
         ..clear()
         ..addAll(def);
+
+      _totalHumidityCount = await _http.fetchHumidityCount();
+      _totalDeformCount = await _http.fetchDeformCount();
+      if (_totalHumidityCount == 0) _totalHumidityCount = _humidity.length;
+      if (_totalDeformCount == 0) _totalDeformCount = _deformation.length;
 
       _computeSpc();
 
@@ -100,6 +110,8 @@ class ConnectionProvider extends ChangeNotifier {
     _humidityRisk = null;
     _humidityCapability = null;
     _nelsonViolations = [];
+    _totalHumidityCount = 0;
+    _totalDeformCount = 0;
     _setStatus(ConnectionStatus.disconnected);
   }
 
@@ -127,9 +139,11 @@ class ConnectionProvider extends ChangeNotifier {
       case WsMessageType.humidityData:
         final list = msg.payload['data'] as List?;
         if (list != null) {
-          for (final item in list.cast<Map<String, dynamic>>()) {
+          final newItems = list.cast<Map<String, dynamic>>();
+          for (final item in newItems) {
             _humidity.add(HumidityMeasurement.fromJson(item));
           }
+          _totalHumidityCount += newItems.length;
           // Bellek yönetimi
           if (_humidity.length > 500) {
             _humidity.removeRange(0, _humidity.length - 500);
@@ -151,6 +165,34 @@ class ConnectionProvider extends ChangeNotifier {
         }
       default:
         break;
+    }
+  }
+
+  // ─── Windowed Fetch ───────────────────────────────────────────────────────
+
+  /// [offset, offset+limit) aralığındaki nem ölçümlerini sunucudan çeker.
+  Future<List<HumidityMeasurement>> fetchHumidityWindow(int offset, int limit) async {
+    try {
+      final body = await _http.fetchHumidityWindow(offset: offset, limit: limit);
+      final total = body['total'] as int?;
+      if (total != null && total > 0) _totalHumidityCount = total;
+      final list = body['data'] as List;
+      return list.cast<Map<String, dynamic>>().map(HumidityMeasurement.fromJson).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// [offset, offset+limit) aralığındaki deformasyon ölçümlerini sunucudan çeker.
+  Future<List<DeformationMeasurement>> fetchDeformWindow(int offset, int limit) async {
+    try {
+      final body = await _http.fetchDeformWindow(offset: offset, limit: limit);
+      final total = body['total'] as int?;
+      if (total != null && total > 0) _totalDeformCount = total;
+      final list = body['data'] as List;
+      return list.cast<Map<String, dynamic>>().map(DeformationMeasurement.fromJson).toList();
+    } catch (_) {
+      return [];
     }
   }
 

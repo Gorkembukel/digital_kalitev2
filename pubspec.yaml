@@ -34,6 +34,9 @@ dependencies:
   # Email
   mailer: ^6.1.0
 
+  # XLSX reader — pure Dart, native plugin gerektirmez
+  excel: ^4.0.0
+
   # Utils
   uuid: ^4.4.0
   intl: ^0.19.0

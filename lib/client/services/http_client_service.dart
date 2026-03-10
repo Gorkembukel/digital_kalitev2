@@ -62,6 +62,55 @@ class HttpClientService {
         .toList();
   }
 
+  // ─── Windowed (offset/limit) ──────────────────────────────────────────────
+
+  /// Ham JSON döner: {'total': int, 'offset': int, 'count': int, 'data': List}
+  Future<Map<String, dynamic>> fetchHumidityWindow({
+    required int offset,
+    required int limit,
+  }) async {
+    final res = await http
+        .get(Uri.parse('$baseUrl/api/humidity?offset=$offset&limit=$limit'))
+        .timeout(_timeout);
+    _checkStatus(res);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  Future<int> fetchHumidityCount() async {
+    try {
+      final res = await http
+          .get(Uri.parse('$baseUrl/api/humidity/count'))
+          .timeout(_timeout);
+      _checkStatus(res);
+      return (jsonDecode(res.body) as Map<String, dynamic>)['total'] as int? ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  Future<Map<String, dynamic>> fetchDeformWindow({
+    required int offset,
+    required int limit,
+  }) async {
+    final res = await http
+        .get(Uri.parse('$baseUrl/api/deformation?offset=$offset&limit=$limit'))
+        .timeout(_timeout);
+    _checkStatus(res);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  Future<int> fetchDeformCount() async {
+    try {
+      final res = await http
+          .get(Uri.parse('$baseUrl/api/deformation/count'))
+          .timeout(_timeout);
+      _checkStatus(res);
+      return (jsonDecode(res.body) as Map<String, dynamic>)['total'] as int? ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   // ─── Private ──────────────────────────────────────────────────────────────
 
   void _checkStatus(http.Response res) {
