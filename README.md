@@ -1,6 +1,6 @@
 # VitrA Karo SPC Dashboard
 
-> Eczacıbaşı / VitrA Karo üretim hatları için gerçek zamanlı **İstatistiksel Proses Kontrolü (SPC)** dashboard uygulaması.
+Karo üretim hatları için gerçek zamanlı **İstatistiksel Proses Kontrolü (SPC)** dashboard uygulaması.
 
 Flutter tabanlı masaüstü (Windows / macOS / Linux) uygulaması. Nem ve deformasyon verilerini CSV/XLSX dosyalarından okuyarak SPC grafikleri, kapasite analizleri, Nelson kural ihlalleri ve çok seviyeli alarm sistemi sunar. Yerleşik HTTP + WebSocket sunucusu ile tek cihazdan veri yayını yapılabilir; diğer cihazlar istemci modunda bağlanır.
 
@@ -403,6 +403,5 @@ lib/
 
 ---
 
-## Lisans
 
-Bu proje Eczacıbaşı / VitrA bünyesinde geliştirilmiş olup ticari kullanım için kapalı kaynak bir uygulamadır.
+
