@@ -33,7 +33,12 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
     if (!ctx.mounted) return;
     if (provider.status == ConnectionStatus.connected) {
       Navigator.of(ctx).pushReplacement(
-        MaterialPageRoute(builder: (_) => const AppNavigation()),
+        MaterialPageRoute(
+          builder: (_) => ChangeNotifierProvider<ConnectionProvider>.value(
+            value: provider,
+            child: const AppNavigation(),
+          ),
+        ),
       );
     }
   }
